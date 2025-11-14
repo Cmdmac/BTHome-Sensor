@@ -19,10 +19,10 @@
 // 3. BLE 广播配置（兼容所有手机）
 #define BLE_FLAGS_GENERAL_BLE_ONLY   0x06    // 广播标志：通用可发现+仅支持BLE
 
-enum DataType : uint8_t {
-  BTHOME_TYPE_BATTERY = 0x01,
-  BTHOME_TYPE_TEMPERATURE = 0x02,
-  BTHOME_TYPE_HUMIDITY = 0x03
+enum BTHomeType : uint8_t {
+  BATTERY = 0x01,
+  TEMPERATURE = 0x02,
+  HUMIDITY = 0x03
 };
 
 class BTHomeBuilder {
@@ -46,7 +46,7 @@ class BTHomeBuilder {
       buffer[index++] = BTHOME_FLAG_UNENCRYPTED;        // 协议标志：未加密（BTHome v2必需）
     }
   public:
-    BTHomeBuilder& append(DataType type, int16_t data) {
+    BTHomeBuilder& append(BTHomeType type, int16_t data) {
       // 子部分1：温度数据（BTHome格式：类型ID + 16位原始值（小端序，0.01℃））
       buffer[index++] = type;        // 数据类型ID：温度
       // int16_t tempRaw = static_cast<int16_t>(sensorData.temperature * 100);  // ℃→0.01℃（放大100倍）
@@ -55,12 +55,12 @@ class BTHomeBuilder {
       return *this;
     }
 
-    BTHomeBuilder& append(DataType type, float data) {
+    BTHomeBuilder& append(BTHomeType type, float data) {
       int16_t data_cast = static_cast<int16_t>(data);
       return append(type, data_cast);
     }
 
-    BTHomeBuilder& append(DataType type, uint8_t data) {
+    BTHomeBuilder& append(BTHomeType type, uint8_t data) {
       buffer[index++] = type;
       buffer[index++] = data;
       return *this;

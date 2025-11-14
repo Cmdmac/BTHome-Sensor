@@ -91,7 +91,7 @@ void startFastAdvertising() {
  */
 void buildBTHomeAdvertisementData(BLEAdvertisementData &advertisementData) {
   BTHomeBuilder builder = BTHomeBuilder();
-  String dataStr = builder.append(BTHOME_TYPE_TEMPERATURE, sensorData.temperature * 100).append(BTHOME_TYPE_HUMIDITY, sensorData.humidity * 100).append(BTHOME_TYPE_BATTERY, sensorData.battery).build();
+  String dataStr = builder.append(BTHomeType::TEMPERATURE, sensorData.temperature * 100).append(BTHomeType::HUMIDITY, sensorData.humidity * 100).append(BTHomeType::BATTERY, sensorData.battery).build();
   // buildBTHomeAdvertisementData(advertisementData);
   advertisementData.addData(dataStr);
 
