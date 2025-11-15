@@ -39,13 +39,17 @@ class BTHomeBuilder {
       buffer[index++] = BLE_FLAGS_GENERAL_BLE_ONLY;  // 标志值：通用可发现+仅BLE
 
       // 格式：AD长度(1字节) + AD类型(1字节) + UUID(2字节) + 协议标志(1字节) + 传感器数据(N字节)
-      buffer[index++] = 0x0C;                          // AD长度：后续数据占12字节（UUID2 + 标志1 + 温3 + 湿3 + 电2）
+      buffer[index++] = 0x0C;                          // AD长度：后续数据长度，先占位后面增加数据后更新
       buffer[index++] = AD_TYPE_SERVICE_DATA_16BIT;     // AD类型：16位UUID关联的服务数据
       buffer[index++] = (BTHOME_UUID_16 & 0xFF);        // 关联BTHome UUID（低字节）
       buffer[index++] = (BTHOME_UUID_16 >> 8) & 0xFF;   // 关联BTHome UUID（高字节）
       buffer[index++] = BTHOME_FLAG_UNENCRYPTED;        // 协议标志：未加密（BTHome v2必需）
     }
   public:
+    BTHomeBuilder() {
+      buildHeader();
+    }
+
     BTHomeBuilder& append(BTHomeType type, int16_t data) {
       // 子部分1：温度数据（BTHome格式：类型ID + 16位原始值（小端序，0.01℃））
       buffer[index++] = type;        // 数据类型ID：温度
