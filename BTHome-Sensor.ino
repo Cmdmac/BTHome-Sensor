@@ -48,15 +48,17 @@ void loop() {
   
   // // 立即更新广播数据，不等待
   updateAdvertisingFast();
+  delay(100); // 50ms延迟，实现约20次/秒的更新频率
 
-  // esp_sleep_enable_timer_wakeup(60 * 1000 * 1000); // 睡眠30秒
-  // esp_deep_sleep_start();
+  esp_sleep_enable_timer_wakeup(10 * 1000 * 1000); // 睡眠10秒
+  esp_light_sleep_start();
+  // Serial.println("进入lighsleep");
   // 禁用所有不需要的外设
   // esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
   // esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF);
   
   // 非常短的延迟，保持系统稳定
-  delay(10000); // 50ms延迟，实现约20次/秒的更新频率
+  // delay(10000); // 50ms延迟，实现约20次/秒的更新频率
 }
 
 void startFastAdvertising() {
@@ -117,6 +119,12 @@ void updateSensorDataFast() {
   }
 }
 
+// 广播完成回调函数（必须匹配函数指针类型：参数为 BLEAdvertising*）
+void advCompleteCallback(BLEAdvertising *pAdv) {
+  Serial.println("✅ 广播完成（回调触发）");
+  pAdv->stop();         // 回调中停止广播（省功耗，避免冗余发射）
+}
+
 void updateAdvertisingFast() {
   static unsigned long lastAdvUpdate = 0;
   unsigned long currentTime = millis();
@@ -143,5 +151,8 @@ void updateAdvertisingFast() {
                    sensorData.packetId, sensorData.temperature, 
                    sensorData.humidity, sensorData.battery);
     }
+
+    // Serial.println("Start");
+    // pAdvertising->start(1000, advCompleteCallback);
   }
 }
