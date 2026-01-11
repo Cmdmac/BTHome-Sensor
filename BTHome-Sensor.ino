@@ -19,65 +19,29 @@ void setup() {
   Serial.begin(115200);
   Serial.println("setup");
 
-  // BLEDevice::init(DEVICE_NAME);
-  // BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  // pAdvertising->setMinInterval(160);  // 32 * 0.625ms = 20ms
-  // pAdvertising->setMaxInterval(240);  // 64 * 0.625ms = 40ms
-  // BLEAdvertisementData advertisementData, scanResponseData;
-  // buildBTHomeAdvertisementData(advertisementData);
-  // // advertisementData.addData(dataStr);
-  // pAdvertising->setAdvertisementData(advertisementData);
-  // scanResponseData.setName(DEVICE_NAME);
-  // pAdvertising->setScanResponseData(scanResponseData);
-  // pAdvertising->start();
-  // pAdvertising->stop();
-
-  // BLEDevice::deinit(false);
-
-  // startFastAdvertising();
-
-  uint32_t targetFreq = 80;  // 目标频率：80MHz（省功耗，足够传感器+BLE 场景）
-  setCpuFrequencyMhz(targetFreq);
-
-  // 验证频率是否设置成功（可选，串口打印反馈）
-  uint32_t currentFreq = getCpuFrequencyMhz();
-  if (currentFreq == targetFreq) {
-    Serial.printf("CPU 频率已成功设置为 %lu MHz\n", currentFreq);
-  } else {
-    Serial.printf("CPU 频率设置失败，当前频率：%lu MHz\n", currentFreq);
-  }
-
-  Serial.println("快速BTHOME设备开始广播");
-  Serial.println("广播间隔: 100-200ms");
-  Serial.println("数据更新: 立即响应");
-
-  // 1. 配置唤醒源：RTC 定时器唤醒
-  // esp_sleep_enable_timer_wakeup(10000);
-  // esp_deep_sleep_start();
-  // esp_light_sleep_start();
+  //初始化BLE
+  BLEDevice::init(DEVICE_NAME);
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  //设置广播间隔
+  pAdvertising->setMinInterval(160);  // 32 * 0.625ms = 20ms
+  pAdvertising->setMaxInterval(240);  // 64 * 0.625ms = 40ms
+  // 初始广播数据
+  BLEAdvertisementData advertisementData, scanResponseData;
+  buildBTHomeAdvertisementData(advertisementData);
+  // advertisementData.addData(dataStr);
+  pAdvertising->setAdvertisementData(advertisementData);
+  // 设置设备名称
+  scanResponseData.setName(DEVICE_NAME);
+  pAdvertising->setScanResponseData(scanResponseData);
+  pAdvertising->start();
+  
 }
 
 void loop() {
-  static uint64_t nextWakeRTC = esp_timer_get_time() / 1000; // 初始目标唤醒时间
-
-  // // 快速更新传感器数据（模拟）
+  //更新数据
   updateSensorData();
-
-  // // 立即更新广播数据，不等待
+  //发送广播
   broardcastData();
-  // delay(100); // 50ms延迟，实现约20次/秒的更新频率
-
-  // nextWakeRTC += 10000;
-  // uint64_t currentRTC = esp_timer_get_time() / 1000;
-  // uint64_t sleepUs = (nextWakeRTC - currentRTC) * 1000; // 计算需要睡眠的微秒数
-
-  // // 避免睡眠时长为负（极端情况）
-  // if (sleepUs < 0) sleepUs = 0;
-
-  // Serial.printf("发送完成 | 下次唤醒：%lu ms后(校准后)\n\n", sleepUs / 1000);
-  // Serial.flush();
-  // esp_sleep_enable_timer_wakeup(sleepUs);  // 睡眠10秒
-  // esp_light_sleep_start();
 }
 
 /**
@@ -89,9 +53,6 @@ void buildBTHomeAdvertisementData(BLEAdvertisementData &advertisementData) {
   String dataStr = builder.append(BTHomeType::TEMPERATURE, sensorData.temperature * 100).append(BTHomeType::HUMIDITY, sensorData.humidity * 100).append(BTHomeType::BATTERY, sensorData.battery).build();
   // buildBTHomeAdvertisementData(advertisementData);
   advertisementData.addData(dataStr);
-
-  // 最终：将合规的广播数据添加到BLE对象
-  // advertisementData.addData(reinterpret_cast<char*>(advBuffer), advIdx);
 }
 
 void updateSensorData() {
@@ -113,50 +74,15 @@ void updateSensorData() {
 }
 
 void broardcastData() {
-  static unsigned long lastAdvUpdate = 0;
-  unsigned long currentTime = esp_timer_get_time() / 1000;
 
-  // 只有在需要更新数据时才重新配置广播
-  unsigned long delta = currentTime - lastAdvUpdate;
-  if (delta >= 10000) { // 每50ms更新一次
-    // BLEDevice::deinit();
-    BLEDevice::init(DEVICE_NAME);
-    Serial.println(delta);
-    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  BLEAdvertisementData advertisementData;
+  // BTHomeBuilder builder = BTHomeBuilder();
+  // String dataStr = builder.append(sensorData.temperature * 100).append(sensorData.humidity * 100).append(sensorData.battery).build();
+  buildBTHomeAdvertisementData(advertisementData);
+  // advertisementData.addData(dataStr);
+  pAdvertising->setAdvertisementData(advertisementData);
 
-    // 注意：频繁停止/启动广播可能影响稳定性
-    // 这里采用条件更新策略
-    BLEAdvertisementData advertisementData, scanResponseData;
-    // BTHomeBuilder builder = BTHomeBuilder();
-    // String dataStr = builder.append(sensorData.temperature * 100).append(sensorData.humidity * 100).append(sensorData.battery).build();
-    buildBTHomeAdvertisementData(advertisementData);
-    // advertisementData.addData(dataStr);
-    pAdvertising->setAdvertisementData(advertisementData);
-    scanResponseData.setName(DEVICE_NAME);
-    pAdvertising->setScanResponseData(scanResponseData);
+  pAdvertising->start();
 
-    pAdvertising->setMinInterval(160);  // 32 * 0.625ms = 20ms
-    pAdvertising->setMaxInterval(240);  // 64 * 0.625ms = 40ms
-    lastAdvUpdate = currentTime;
-
-    // 每100个包打印一次状态，避免串口阻塞
-    if (sensorData.packetId % 100 == 0) {
-      Serial.printf("包ID: %d, 温度: %.1f°C, 湿度: %.1f%%, 电池: %d%%\n",
-                    sensorData.packetId, sensorData.temperature,
-                    sensorData.humidity, sensorData.battery);
-    }
-
-  // Serial.println("Start");
-    pAdvertising->start();
-
-    // wait for send
-    unsigned long broadcastStart = esp_timer_get_time() / 1000;
-    while (esp_timer_get_time() / 1000 - broadcastStart < 1000) {
-      yield();
-    }
-
-    pAdvertising->stop();
-    BLEDevice::deinit(false);
-    // pAdvertising->stop();
-  }
 }
